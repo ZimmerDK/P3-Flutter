@@ -1,0 +1,7 @@
+// 1. COPY/PASTE this file and name it 'dev_config.dart'
+// 2. REPLACE the IP address with your computer's local network IP.
+//    - Windows command: ipconfig
+//    - macOS/Linux command: ifconfig
+// This file is ignored by Git to allow for local development settings.
+
+const String physicalDeviceIp = '192.168.1.101'; // <-- REPLACE THIS
