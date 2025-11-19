@@ -12,7 +12,9 @@ Before you begin, ensure you have the following installed:
 ## Project Setup
 
 1.  **Install dependencies:**
+```bash
     flutter pub get
+```
 
 2.  **Configure Local Development Environment:**
     This project uses a local configuration file to manage the IP address of your backend server during development. This allows each developer to use their own local IP without creating version control conflicts.
@@ -28,9 +30,8 @@ Make sure your MuloApp backend server is running before launching the app.
 
 ### Running on Web (Chrome)
 For web development, the app will connect to `localhost:8080`.
-
+The --web-port flag ensures a consistent origin for CORS
 ```bash
-# The --web-port flag ensures a consistent origin for CORS
 flutter run -d chrome --web-port 1918
 ```
 
