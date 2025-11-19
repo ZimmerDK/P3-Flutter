@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart'; // Import for debugPrint
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
+import 'package:jwt_decoder/jwt_decoder.dart';
 import '../config/environment.dart';
 
 class AuthService {
@@ -37,8 +38,8 @@ class AuthService {
         if (responseBody != null && responseBody['token'] != null) {
           final token = responseBody['token'];
           debugPrint('--- TOKEN RECEIVED ---');
-          debugPrint(token);
-          debugPrint('----------------------');
+          /*debugPrint(token);
+          debugPrint('----------------------');*/
           await _saveToken(token);
           debugPrint('Token successfully saved.');
           return true;
@@ -74,7 +75,24 @@ class AuthService {
 
   Future<bool> isLoggedIn() async {
     final token = await getToken();
-    // You might want to add token validation logic here
-    return token != null;
+    if (token == null) {
+      debugPrint('isLoggedIn: No token found.');
+      return false;
+    }
+
+    try {
+      final isExpired = JwtDecoder.isExpired(token);
+      if (isExpired) {
+        debugPrint('isLoggedIn: Token is expired.');
+        await logout(); // Clean up the expired token
+        return false;
+      }
+      debugPrint('isLoggedIn: Token is valid.');
+      return true;
+    } catch (e) {
+      debugPrint('isLoggedIn: Error decoding token: $e');
+      await logout(); // The token is invalid/malformed, so log out
+      return false;
+    }
   }
 }
