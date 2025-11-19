@@ -13,7 +13,7 @@ class GPSLocationData {
 
   Map<String, dynamic> toJson() => {
         'id': id,
-        'timestamp': timestamp.toIso8601String(),
+        'timestamp': timestamp.toUtc().toIso8601String(),
         'latitude': latitude,
         'longitude': longitude,
       };

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
@@ -6,6 +7,8 @@ import 'package:http/http.dart' as http;
 import 'services/route_check_api.dart';
 import 'config/environment.dart';
 import 'models/gps_location_data.dart';
+import 'screens/login_screen.dart';
+import 'services/auth_service.dart';
 
 /// Determine the current position of the device.
 ///
@@ -49,7 +52,6 @@ Future<Position> _determinePosition() async {
 }
 
 void main() {
-  Environment.overrideBaseUrl('http://localhost:8080');
   runApp(const MyApp());
 }
 
@@ -60,7 +62,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'Flutter Mulo GPS Tracker',
       theme: ThemeData(
         // This is the theme of your application.
         //
@@ -79,7 +81,18 @@ class MyApp extends StatelessWidget {
         // tested with just a hot reload.
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: FutureBuilder<bool>(
+        future: AuthService().isLoggedIn(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          } else if (snapshot.hasData && snapshot.data == true) {
+            return const MyHomePage(title: 'Flutter Mulo GPS Tracker Home Page');
+          } else {
+            return const LoginScreen();
+          }
+        },
+      ),
     );
   }
 }
@@ -105,11 +118,11 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
 
   int _counter = 0;
-  String url = "https://butterbrot.org/";
+  String url = "https://mulo.dk/";
   Position? _location;
   bool isRunning = false;
   Timer? restart;
-  String trackerId = 'demo123';
+  String trackerId = 'Six7';
   int recordId = 1; // Incremental id for demo; replace with real source if needed.
   final RouteCheckApi _api = RouteCheckApi();
   String? _lastStatus; // Holds last POST status/info
@@ -159,6 +172,30 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+  Future<void> _sendLocation(String trackerId, DateTime timestamp, double latitude, double longitude) async {
+    final url = Uri.parse('http://localhost:8080/api/route/check/$trackerId');
+    
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: json.encode({
+        'timestamp': DateTime.now().toIso8601String(),
+        'latitude': latitude,
+        'longitude': longitude
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      print('Location updated successfully.');
+    } else {
+      print('Failed to update location: ${response.statusCode}');
+      print('Response body: ${response.body}');
+    }
+  }
+
+
   void _getLocation() {
 
     // query position (will return a Future)
@@ -171,20 +208,8 @@ class _MyHomePageState extends State<MyHomePage> {
         setState(() {
           _location = value;
         });
-        final finalUri = Uri.parse(url).replace(queryParameters: {
-          'timestamp': value.timestamp.toIso8601String(),
-          'lat': value.latitude.toString(),
-          'lon': value.longitude.toString(),
-        });
-        try {
-          Future<http.Response> res = http.get(finalUri);
-          res.then((resp) { _counter++; });
-          debugPrint(finalUri.toString());
-        } catch (e) {
-          debugPrint(e.toString());
-        }
+        //_sendLocation(trackerId, value.timestamp, value.latitude, value.longitude); // send to backend
         _sendCoordinate(value); // send to backend
-        
       }
     );
     debugPrint("_getLocation done");
