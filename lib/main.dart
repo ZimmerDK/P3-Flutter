@@ -165,6 +165,9 @@ class _MyHomePageState extends State<MyHomePage> {
             ? 'Success ${response.statusCode}'
             : 'Fail ${response.statusCode}: ${response.body}';
       });
+      if(_lastStatus == 'Success ${response.statusCode}') {
+        _counter++;
+      }
       debugPrint('Send status ${response.statusCode}');
     } catch (e) {
       setState(() { _lastStatus = 'Error: $e'; });
@@ -173,7 +176,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> _sendLocation(String trackerId, DateTime timestamp, double latitude, double longitude) async {
-    final url = Uri.parse('http://localhost:8080/api/route/check/$trackerId');
+    final url = Uri.parse('http://localhost:8080/api/route/$trackerId');
     
     final response = await http.post(
       url,
