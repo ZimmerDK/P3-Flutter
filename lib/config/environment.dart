@@ -7,7 +7,7 @@ class Environment {
   static const bool isProduction = kReleaseMode;
 
   // Production URL is always fixed.
-  static const String _productionBaseUrl = 'https://www.mulo.dk';
+  static const String _productionBaseUrl = 'https://www.mulo.dk/api';
   
   static String get _devBaseUrl {
     if (kIsWeb) {

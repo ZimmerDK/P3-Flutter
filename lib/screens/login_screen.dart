@@ -32,8 +32,11 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     if (success) {
+      final appState = context.findAncestorStateOfType<MyAppState>();
+      final isDark = appState?.isDark ?? false;
+      final onThemeChanged = appState?.setDark ?? (bool _) {};
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const MyHomePage(title: 'Flutter Mulo GPS Tracker Home Page')),
+        MaterialPageRoute(builder: (context) => MyHomePage(title: 'Flutter Mulo GPS Tracker App', isDark: isDark, onThemeChanged: onThemeChanged)),
       );
     } else {
       setState(() {
@@ -58,17 +61,22 @@ class _LoginScreenState extends State<LoginScreen> {
               decoration: const InputDecoration(labelText: 'Email'),
             ),
             const SizedBox(height: 16),
-            TextField(
-              controller: _passwordController,
-              decoration: const InputDecoration(labelText: 'Password'),
-              obscureText: true,
-            ),
+              TextField(
+                controller: _passwordController,
+                decoration: const InputDecoration(labelText: 'Password'),
+                obscureText: true,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => _login(),
+              ),
             const SizedBox(height: 24),
             if (_isLoading)
               const CircularProgressIndicator()
             else
               ElevatedButton(
                 onPressed: _login,
+                style: ElevatedButton.styleFrom(
+                  foregroundColor: const Color(0xFFCB3231),
+                ),
                 child: const Text('Login'),
               ),
             if (_errorMessage != null) ...[

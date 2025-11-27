@@ -3,7 +3,7 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <application
         android:networkSecurityConfig="@xml/network_security_config"
-        android:label="p3MuloFlutter"
+        android:label="P3 Flutter Mulo GPS Tracker App"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
@@ -33,6 +33,11 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+
+        <meta-data
+            android:name="author"
+            android:value="Magnus Zimmer (magnuszimmer11@gmail.com)" />
+
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

@@ -99,3 +99,9 @@ When you are ready to deploy, you can create a release build. In release mode, t
     flutter build web
 ```
 The output will be in the `build/` directory.
+
+
+
+## Author
+
+Magnus Zimmer <magnuszimmer11@gmail.com>

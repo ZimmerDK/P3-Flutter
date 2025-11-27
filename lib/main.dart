@@ -1,13 +1,16 @@
 import 'dart:async';
-import 'dart:convert';
+// No JSON import required here; add `import 'dart:convert';` if needed later.
 
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:http/http.dart' as http;
+// 'http' import currently unused; keep it commented in case you need direct HTTP calls later.
+// import 'package:http/http.dart' as http;
 import 'services/route_check_api.dart';
 import 'config/environment.dart';
 import 'models/gps_location_data.dart';
 import 'screens/login_screen.dart';
+import 'screens/about_screen.dart';
 import 'services/auth_service.dart';
 
 /// Determine the current position of the device.
@@ -55,31 +58,63 @@ void main() {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
+  @override
+  State<MyApp> createState() => MyAppState();
+}
+
+class MyAppState extends State<MyApp> {
+  ThemeMode _themeMode = ThemeMode.light;
+
+  @override
+  void initState() {
+    super.initState();
+    // Load saved theme preference (defaults to light)
+    SharedPreferences.getInstance().then((prefs) {
+      final saved = prefs.getBool('isDark') ?? false;
+      setState(() {
+        _themeMode = saved ? ThemeMode.dark : ThemeMode.light;
+      });
+      debugPrint('MyAppState: loaded isDark=$saved');
+    });
+  }
+
+  // Public setter so other widgets can toggle theme (e.g. LoginScreen)
+  void setDark(bool isDark) {
+    setState(() {
+      _themeMode = isDark ? ThemeMode.dark : ThemeMode.light;
+    });
+    // Persist preference in background so callers don't need to await.
+    SharedPreferences.getInstance().then((prefs) async {
+      try {
+        final ok = await prefs.setBool('isDark', isDark);
+        final readBack = prefs.getBool('isDark');
+        debugPrint('MyAppState: saved isDark=$isDark (ok=$ok) readBack=$readBack');
+      } catch (e) {
+        debugPrint('MyAppState: failed to save isDark=$isDark -> $e');
+      }
+    }).catchError((e) { debugPrint('MyAppState: SharedPreferences.getInstance() failed -> $e'); return null; });
+  }
+
+  // Public getter for current dark state
+  bool get isDark => _themeMode == ThemeMode.dark;
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Mulo GPS Tracker',
+      title: 'Flutter Mulo GPS Tracker App',
+      themeMode: _themeMode,
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+        brightness: Brightness.light,
+        scaffoldBackgroundColor: Colors.white,
+        appBarTheme: const AppBarTheme(backgroundColor: Color(0xFFCB3231), titleTextStyle: TextStyle(color: Colors.white)),
+      ),
+      darkTheme: ThemeData(
+        brightness: Brightness.dark,
+        scaffoldBackgroundColor: const Color(0xFF212121),
+        appBarTheme: const AppBarTheme(backgroundColor: Color(0xFFCB3231), titleTextStyle: TextStyle(color: Colors.white)),
       ),
       home: FutureBuilder<bool>(
         future: AuthService().isLoggedIn(),
@@ -87,7 +122,7 @@ class MyApp extends StatelessWidget {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Scaffold(body: Center(child: CircularProgressIndicator()));
           } else if (snapshot.hasData && snapshot.data == true) {
-            return const MyHomePage(title: 'Flutter Mulo GPS Tracker Home Page');
+            return MyHomePage(title: 'Flutter Mulo GPS Tracker App', isDark: isDark, onThemeChanged: setDark);
           } else {
             return const LoginScreen();
           }
@@ -98,7 +133,7 @@ class MyApp extends StatelessWidget {
 }
 
 class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
+  const MyHomePage({super.key, required this.title, required this.isDark, required this.onThemeChanged});
 
   // This widget is the home page of your application. It is stateful, meaning
   // that it has a State object (defined below) that contains fields that affect
@@ -110,6 +145,8 @@ class MyHomePage extends StatefulWidget {
   // always marked "final".
 
   final String title;
+  final bool isDark;
+  final ValueChanged<bool> onThemeChanged;
 
   @override
   State<MyHomePage> createState() => _MyHomePageState();
@@ -127,6 +164,8 @@ class _MyHomePageState extends State<MyHomePage> {
   final RouteCheckApi _api = RouteCheckApi();
   String? _lastStatus; // Holds last POST status/info
   late final TextEditingController _trackerIdController;
+  late final TextEditingController _pingUrlController;
+
 
   void _toggle() {
     // toggle running state
@@ -143,11 +182,13 @@ class _MyHomePageState extends State<MyHomePage> {
   void initState() {
     super.initState();
     _trackerIdController = TextEditingController(text: trackerId);
+    _pingUrlController = TextEditingController(text: url);
   }
 
   @override
   void dispose() {
     _trackerIdController.dispose();
+    _pingUrlController.dispose();
     super.dispose();
   }
 
@@ -175,32 +216,7 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  Future<void> _sendLocation(String trackerId, DateTime timestamp, double latitude, double longitude) async {
-    final url = Uri.parse('http://localhost:8080/api/route/$trackerId');
-    
-    final response = await http.post(
-      url,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: json.encode({
-        'timestamp': DateTime.now().toIso8601String(),
-        'latitude': latitude,
-        'longitude': longitude
-      }),
-    );
-
-    if (response.statusCode == 200) {
-      print('Location updated successfully.');
-    } else {
-      print('Failed to update location: ${response.statusCode}');
-      print('Response body: ${response.body}');
-    }
-  }
-
-
   void _getLocation() {
-
     // query position (will return a Future)
     Future<Position> pos = _determinePosition();
 
@@ -231,13 +247,18 @@ class _MyHomePageState extends State<MyHomePage> {
     // than having to individually change instances of widgets.
     return Scaffold(
       appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
+        backgroundColor: const Color(0xFF212121),
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: Text(widget.title, style: const TextStyle(color: Colors.white)),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.info_outline),
+            color: Colors.white,
+            tooltip: 'About',
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AboutScreen())),
+          ),
+        ],
       ),
       body: Center(
         // Center is a layout widget. It takes a single child and positions it
@@ -257,21 +278,42 @@ class _MyHomePageState extends State<MyHomePage> {
           // action in the IDE, or press "p" in the console), to see the
           // wireframe for each widget.
           mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: <Widget>[
-            TextFormField(initialValue: url, onFieldSubmitted: (value) { setState(() { url = value; }); }, decoration: const InputDecoration(labelText: 'Ping URL (optional)'),),
-            TextFormField(controller: _trackerIdController, onChanged: (value) { setState(() { trackerId = value; }); }, decoration: const InputDecoration(labelText: 'Tracker ID'),),
-            TextFormField(initialValue: recordId.toString(), onFieldSubmitted: (value) { final parsed = int.tryParse(value); if (parsed != null) recordId = parsed; }, decoration: const InputDecoration(labelText: 'Next Record ID'),),
-            Text('Backend Base URL: ${Environment.effectiveBaseUrl()}'),
-            Text("Location update # $_counter: $_location"),
-            Text('Last send: ${_lastStatus ?? 'No sends yet'}'),
+            TextFormField(
+              controller: _pingUrlController,
+              readOnly: true,
+              textAlign: TextAlign.center,
+              decoration: const InputDecoration(labelText: 'Ping URL (read-only)', floatingLabelAlignment: FloatingLabelAlignment.center),
+            ),
+            TextFormField(
+              controller: _trackerIdController,
+              onChanged: (value) { setState(() { trackerId = value; }); },
+              textAlign: TextAlign.center,
+              decoration: const InputDecoration(labelText: 'Tracker ID', floatingLabelAlignment: FloatingLabelAlignment.center),
+            ),
+            Text('Backend Base URL: ${Environment.effectiveBaseUrl()}', textAlign: TextAlign.center,),
+            Text('Location update # $_counter\n$_location', textAlign: TextAlign.center,),
+            Text('Last send: ${_lastStatus ?? 'No sends yet'}', textAlign: TextAlign.center,),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _toggle,
-        tooltip: 'Location Updates',
-        child: Icon((isRunning) ? Icons.pause : Icons.play_arrow),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: SizedBox(
+          height: 56,
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: _toggle,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFCB3231),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: Text(isRunning ? 'STOP TRACKING' : 'START TRACKING'),
+          ),
+        ),
+      ),
     );
   }
 }
