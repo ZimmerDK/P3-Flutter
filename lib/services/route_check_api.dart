@@ -19,7 +19,7 @@ class RouteCheckApi {
     required String trackerId,
     required GPSLocationData data,
   }) async {
-    final uri = Uri.parse('$_baseUrl/api/route/$trackerId');
+    final uri = Uri.parse('$_baseUrl/api/GPSTracker/phone/$trackerId');
     final token = await _authService.getToken();
 
     if (token == null) {
