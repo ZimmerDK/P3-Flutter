@@ -53,7 +53,7 @@ class _AboutScreenState extends State<AboutScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('About', style: TextStyle(color: Colors.white)),
+        title: const Text('About | MULO GPS Tracker', style: TextStyle(color: Colors.white)),
         centerTitle: true,
         backgroundColor: const Color(0xFFCB3231),
         iconTheme: const IconThemeData(color: Colors.white),
