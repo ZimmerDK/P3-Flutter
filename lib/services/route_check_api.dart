@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../config/environment.dart';
 import '../models/gps_location_data.dart';
@@ -50,8 +51,7 @@ class RouteCheckApi {
 
         if (looksLikeTrackerNotFound) {
             // Wrong tracker ID – do NOT queue.
-            // You may want to log this clearly for debugging:
-            // debugPrint('Not queuing point: tracker not found: $body');
+            debugPrint('Not queuing point: tracker not found: $response.body');
         } else {
             // Real server error / offline – queue for retry.
             await _queueService.enqueue(data);
