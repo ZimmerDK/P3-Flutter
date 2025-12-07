@@ -7,6 +7,7 @@ import 'package:geolocator/geolocator.dart';
 // 'http' import currently unused; keep it commented in case you need direct HTTP calls later.
 // import 'package:http/http.dart' as http;
 import 'services/route_check_api.dart';
+import 'services/offline_queue_service.dart';
 import 'config/environment.dart';
 import 'models/gps_location_data.dart';
 import 'screens/login_screen.dart';
@@ -163,6 +164,7 @@ class _MyHomePageState extends State<MyHomePage> {
   int recordId = 1; // Incremental id for demo; replace with real source if needed.
   final RouteCheckApi _api = RouteCheckApi();
   String? _lastStatus; // Holds last POST status/info
+  int _queuedCount = 0; // Number of queued points
   late final TextEditingController _trackerIdController;
   late final TextEditingController _pingUrlController;
 
@@ -183,6 +185,7 @@ class _MyHomePageState extends State<MyHomePage> {
     super.initState();
     _trackerIdController = TextEditingController(text: trackerId);
     _pingUrlController = TextEditingController(text: url);
+    _refreshQueuedCount();
   }
 
   @override
@@ -210,9 +213,24 @@ class _MyHomePageState extends State<MyHomePage> {
         _counter++;
       }
       debugPrint('Send status ${response.statusCode}');
+      _refreshQueuedCount();
     } catch (e) {
       setState(() { _lastStatus = 'Error: $e'; });
       debugPrint('Error sending coordinate: $e');
+      _refreshQueuedCount();
+    }
+  }
+
+  Future<void> _refreshQueuedCount() async {
+    try {
+      final count = await OfflineQueueService().getCount();
+      if (mounted) {
+        setState(() {
+          _queuedCount = count;
+        });
+      }
+    } catch (e) {
+      debugPrint('Failed to get queued count: $e');
     }
   }
 
@@ -295,6 +313,7 @@ class _MyHomePageState extends State<MyHomePage> {
             Text('Backend Base URL: ${Environment.effectiveBaseUrl()}', textAlign: TextAlign.center,),
             Text('Location update # $_counter\n$_location', textAlign: TextAlign.center,),
             Text('Last send: ${_lastStatus ?? 'No sends yet'}', textAlign: TextAlign.center,),
+            Text('Queued points: $_queuedCount', textAlign: TextAlign.center,),
           ],
         ),
       ),

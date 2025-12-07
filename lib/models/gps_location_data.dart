@@ -17,4 +17,13 @@ class GPSLocationData {
         'latitude': latitude,
         'longitude': longitude,
       };
+
+  factory GPSLocationData.fromJson(Map<String, dynamic> json) {
+    return GPSLocationData(
+      id: json['id'] as int,
+      timestamp: DateTime.parse(json['timestamp'] as String),
+      latitude: (json['latitude'] as num).toDouble(),
+      longitude: (json['longitude'] as num).toDouble(),
+    );
+  }
 }
